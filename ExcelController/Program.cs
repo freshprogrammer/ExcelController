@@ -54,7 +54,7 @@ namespace Fresh
                     else if (!Archives.ValidXLSFile(ref templateFile))
                         MessageBox.Show("Cannot start without a summary template.");
                     else
-                        ExcelController.CreatePower_HDC_RCC_Audit(dataFile, templateFile);
+                        new ExcelController().CreatePower_HDC_RCC_Audit(dataFile, templateFile);
                     break;
 
             }

@@ -48,34 +48,31 @@ namespace Fresh
                     MessageBox.Show("Excel Controller \nVersion: " + Assembly.GetExecutingAssembly().GetName().Version + "\n No mode specified. Program will now close.", "Excel Contrller", MessageBoxButtons.OK);
                     break;
                 case ApplicationModes.Power_Panel_Audit_Creator:
-                    //dataFile = @"C:\Fresh Temp\Excel data\PowerHistory-2015-04-10.csv";
-                    //templateFile = @"C:\Fresh Temp\Excel data\HDC RPP Audit - All COLO - Template.xlsx";
-
                     if (dataFile == "")
                     {
                         OpenFileDialog file = new OpenFileDialog();
                         file.Title = "Select a Data CSV File";
+                        file.Multiselect = false;
+                        file.CheckFileExists = true;
                         if (file.ShowDialog() == DialogResult.OK)
-                        {
                             dataFile = file.FileName;
-                        }
                     }
-                    if (templateFile == "")
+                    if (dataFile != "" && templateFile == "")
                     {
                         OpenFileDialog file = new OpenFileDialog();
                         file.Title = "Select a template excel file";
+                        file.Multiselect = false;
+                        file.CheckFileExists = true;
                         if (file.ShowDialog() == DialogResult.OK)
-                        {
                             templateFile = file.FileName;
-                        }
                     }
 
                     if (!ExcelController.ValidXLSFile(ref dataFile))
-                        MessageBox.Show("Cannot start without a data file.");
+                        MessageBox.Show("Cannot start without a data file.", "Missing File");
                     else if (!ExcelController.ValidXLSFile(ref templateFile))
-                        MessageBox.Show("Cannot start without a template file.");
+                        MessageBox.Show("Cannot start without a template file.", "Missing File");
                     else
-                        new ExcelController().CreatePower_HDC_RCC_Audit(dataFile, templateFile);
+                        new ExcelController().CreatePower_RPP_Audit(dataFile, templateFile);
                     break;
 
             }

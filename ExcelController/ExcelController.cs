@@ -2,27 +2,307 @@
 using System.Windows.Forms;
 using System.Collections.Generic;
 using System;
+using System.IO;
+using System.Drawing;
 
 namespace Fresh
 {
     class ExcelController
     {
-        private PowerRecordComparator powerCircuitComparer = new PowerRecordComparator();
-
-        private object missing = System.Reflection.Missing.Value;
-
         public ExcelController()
         {
 
         }
 
-        public void CreatePower_HDC_RCC_Audit(string dataFile, string template)
-        {
-            List<PowerRecord> data = LoadPowerData(dataFile);
+        #region Generic Excel Functions
+        private object missing = System.Reflection.Missing.Value;
 
+        private static void ExcelDisableCalculations(Excel.Application app)
+        {
+            app.ScreenUpdating = false;
+            app.Calculation = Excel.XlCalculation.xlCalculationManual;
         }
 
-        public List<PowerRecord> LoadPowerData(string dataFile)
+        private static void ExcelEnableCalculations(Excel.Application app)
+        {
+            app.ScreenUpdating = true;
+            app.Calculation = Excel.XlCalculation.xlCalculationAutomatic;
+        }
+
+        public static void AddBordersToRange(Excel.Range range, bool darkMarjorBorder)
+        {
+            int innerBorderweight = 2;
+            int edgeBorderweight = 3;
+
+            if (!darkMarjorBorder)
+                edgeBorderweight = 2;
+
+            if (range.Rows.Count > 1)
+            {
+                range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlInsideHorizontal].Color = Color.Red.ToArgb();
+                range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlInsideHorizontal].Weight = innerBorderweight;
+            }
+
+            if (range.Columns.Count > 1)
+            {
+                range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlInsideVertical].Color = Color.Black.ToArgb();
+                range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlInsideVertical].Weight = innerBorderweight;
+            }
+
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeTop].Color = Color.Black.ToArgb();
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeRight].Color = Color.Black.ToArgb();
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeBottom].Color = Color.Black.ToArgb();
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeLeft].Color = Color.Black.ToArgb();
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeTop].Weight = edgeBorderweight;
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeRight].Weight = edgeBorderweight;
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeBottom].Weight = edgeBorderweight;
+            range.Borders[Microsoft.Office.Interop.Excel.XlBordersIndex.xlEdgeLeft].Weight = edgeBorderweight;
+        }
+
+        private static void WriteDataArrayToSheet(object[,] data, Point startCellIndex, Excel.Worksheet worksheet)
+        {
+            //var data = new object[rows, columns];
+            //for (var row = 1; row <= rows; row++)
+            //{
+            //    for (var column = 1; column <= columns; column++)
+            //    {
+            //        data[row - 1, column - 1] = "Test";
+            //    }
+            //}
+
+            Point endCellIndex = new Point(startCellIndex.X + data.GetLength(0) - 1, startCellIndex.Y + data.GetLength(1) - 1);
+
+            var startCell = (Excel.Range)worksheet.Cells[startCellIndex.X, startCellIndex.Y];
+            var endCell = (Excel.Range)worksheet.Cells[endCellIndex.X, endCellIndex.Y];
+            var writeRange = worksheet.Range[startCell, endCell];
+
+            writeRange.Value2 = data;
+        }
+
+        public static bool ValidXLSFile(ref string filePath)
+        {
+            string appPath = Path.GetDirectoryName(Application.ExecutablePath);
+
+            bool validFile = false;
+            if (filePath != null)
+            {
+                if (File.Exists(filePath))
+                {
+                    validFile = true;
+                }
+                else
+                {
+                    filePath = appPath + Path.DirectorySeparatorChar + filePath;
+                    if (File.Exists(filePath))
+                    {
+                        validFile = true;
+                    }
+                }
+            }
+            if (validFile)
+            {
+                validFile = false;
+                filePath = Path.GetFullPath(filePath);
+
+                //this is to test for invalid file types
+                if (Path.GetExtension(filePath).ToLower() != ".xls")
+                    validFile = true;
+                if (Path.GetExtension(filePath).ToLower() != ".xlsx")
+                    validFile = true;
+                if (Path.GetExtension(filePath).ToLower() != ".csv")
+                    validFile = true;
+            }
+            return validFile;
+        }
+
+        /// <summary>
+        /// Enter a number between 0-25 and get the corisponding char. Over 25 will be modded down
+        /// </summary>
+        /// <param name="x">char value between 0 and 25</param>
+        /// <returns></returns>
+        private static string GetExcelColAZoZ(int x)
+        {
+            x %= 26;
+            x += 1;
+            switch (x)
+            {
+                default:
+                case 1: return "A";
+                case 2: return "B";
+                case 3: return "C";
+                case 4: return "D";
+                case 5: return "E";
+                case 6: return "F";
+                case 7: return "G";
+                case 8: return "H";
+                case 9: return "I";
+                case 10: return "J";
+                case 11: return "K";
+                case 12: return "L";
+                case 13: return "M";
+                case 14: return "N";
+                case 15: return "O";
+                case 16: return "P";
+                case 17: return "Q";
+                case 18: return "R";
+                case 19: return "S";
+                case 20: return "T";
+                case 21: return "U";
+                case 22: return "V";
+                case 23: return "W";
+                case 24: return "X";
+                case 25: return "Y";
+                case 26: return "Z";
+            }
+        }
+
+        private static int GetExcelColIndex(string colName)
+        {
+            colName = colName.ToUpper();
+
+            if (colName.Length > 1)
+            {
+                int colVal1 = GetExcelColIndex(colName[0]);
+                int colVal2 = GetExcelColIndex(colName[1]);
+
+                int result = (colVal1 * 26) + colVal2;
+                return result;
+            }
+            else
+            {
+                return GetExcelColIndex(colName[0]);
+            }
+        }
+
+        private static int GetExcelColIndex(char c)
+        {
+            switch (c)
+            {
+                default:
+                case 'A': return 1;
+                case 'B': return 2;
+                case 'C': return 3;
+                case 'D': return 4;
+                case 'E': return 5;
+                case 'F': return 6;
+                case 'G': return 7;
+                case 'H': return 8;
+                case 'I': return 9;
+                case 'J': return 10;
+                case 'K': return 11;
+                case 'L': return 12;
+                case 'M': return 13;
+                case 'N': return 14;
+                case 'O': return 15;
+                case 'P': return 16;
+                case 'Q': return 17;
+                case 'R': return 18;
+                case 'S': return 19;
+                case 'T': return 20;
+                case 'U': return 21;
+                case 'V': return 22;
+                case 'W': return 23;
+                case 'X': return 24;
+                case 'Y': return 25;
+                case 'Z': return 26;
+            }
+        }
+
+        public static void ReleaseObject(object obj)
+        {
+            try
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(obj);
+                obj = null;
+            }
+            catch (Exception ex)
+            {
+                obj = null;
+                MessageBox.Show("Unable to release the Object " + ex.ToString());
+            }
+            finally
+            {
+                GC.Collect();
+            }
+        }
+        #endregion
+
+        #region Power_HDC_RCC_Audit
+        private PowerRecordComparator powerCircuitComparer = new PowerRecordComparator();
+
+        /*
+         * TODO
+         * fix date (max on panel)
+         * fix formula for circuits not 20A
+         * fix 208 double circuits
+         * 
+         * */
+        public void CreatePower_HDC_RCC_Audit(string dataFile, string templateFile)
+        {
+            List<PowerRecord> dataRecords = LoadPowerData(dataFile);
+
+            Excel.Application excelApplication = new Excel.Application();
+            excelApplication.Visible = true;
+
+            Excel.Workbook workbook = excelApplication.Workbooks.Open(templateFile, 0, true, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "", true, false, 0, true, false, false);
+
+            Excel.Worksheet templateSheet = (Excel.Worksheet)workbook.Worksheets[1];
+
+            string date = "DATE HERE";
+            string lastPanel = null;
+            object[,] data = new object[41, 10];
+            Excel.Worksheet panelSheet = null;
+            foreach (PowerRecord rec in dataRecords)
+            {
+                if (rec.panel != lastPanel)
+                {
+                    //new sheet
+                    //Excel.Worksheet newSheet = (Excel.Worksheet)workbook.Worksheets.Add(Type.Missing, Type.Missing, Type.Missing, Type.Missing);
+                    templateSheet.Copy(templateSheet);
+                    if(panelSheet!=null)
+                        ReleaseObject(panelSheet);
+                    panelSheet = (Excel.Worksheet)workbook.Worksheets[workbook.Worksheets.Count-1];
+                    panelSheet.Name = "UPS " + rec.panel;
+
+                    //site
+                    panelSheet.get_Range("C8").Value = "IRV01";
+                    //panel
+                    panelSheet.get_Range("C9").Value = "UPS " + rec.panel;
+                    //date
+                    panelSheet.get_Range("C10").Value = date;
+
+                    lastPanel = rec.panel;
+                }
+
+                string cellOfCircuit = GetCellForCircuit_HDC_RCC_Audit(rec.circuit);
+                panelSheet.get_Range(cellOfCircuit).Value = rec.reading;
+            }
+            ReleaseObject(panelSheet);
+
+            //delete template sheet
+            templateSheet.Delete();
+
+
+            //excelApplication.ActiveWindow.DisplayGridlines = false;
+            excelApplication.Visible = true;
+
+            //workbook
+            ReleaseObject(workbook);
+            //app
+            ReleaseObject(excelApplication);
+        }
+
+        private static string GetCellForCircuit_HDC_RCC_Audit(int circuit)
+        {
+            int letterCol = (int)(((circuit-1)%6)/2);
+            if (circuit % 2 == 0) letterCol += 5;//skip two in middle - put even on the right
+            letterCol+=1;//offset from 0
+            string letter = GetExcelColAZoZ(letterCol);
+            int number = 14+(int)((circuit-1)/2);
+            return letter + number;
+        }
+
+        private List<PowerRecord> LoadPowerData(string dataFile)
         {
             /* parse data from CSV file
              */
@@ -78,34 +358,17 @@ namespace Fresh
 
             return powerData;
         }
-
-        public static void ReleaseObject(object obj)
-        {
-            try
-            {
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(obj);
-                obj = null;
-            }
-            catch (Exception ex)
-            {
-                obj = null;
-                MessageBox.Show("Unable to release the Object " + ex.ToString());
-            }
-            finally
-            {
-                GC.Collect();
-            }
-        }
+        #endregion
     }
 
+    #region Power Record for HDC RCC Audit
     class PowerRecordComparator : IComparer<PowerRecord>
     {
         public int Compare(PowerRecord t1, PowerRecord t2)
         {
-            return (t1.panel+(t1.circuit+100)).CompareTo(t2.panel+(t2.circuit+100));
+            return (t1.panel.PadLeft(3, '0') + (t1.circuit + 100)).CompareTo(t2.panel.PadLeft(3, '0') + (t2.circuit + 100));
         }
     }
-
     struct PowerRecord
     {
         public string panel;
@@ -121,4 +384,13 @@ namespace Fresh
             return "Circuit: " + panel + " " + circuit + " - " + reading + "A - " + volts + "V " + amps + "A  "+(on)+" "+date;
         }
     }
+
+    class PowerRecordComparator : IComparer<PowerRecord>
+    {
+        public int Compare(PowerRecord t1, PowerRecord t2)
+        {
+            return (t1.panel.PadLeft(3, '0') + (t1.circuit + 100)).CompareTo(t2.panel.PadLeft(3, '0') + (t2.circuit + 100));
+        }
+    }
+    #endregion
 }

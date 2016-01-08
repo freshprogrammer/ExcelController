@@ -1,5 +1,6 @@
 ﻿using System.Windows.Forms;
 using System.Reflection;
+using System;
 
 namespace Fresh
 {
@@ -12,6 +13,7 @@ namespace Fresh
             None,
         }
 
+        [STAThread]
         static void Main(string[] args)
         {
             ApplicationModes mode = ApplicationModes.None;
@@ -46,12 +48,31 @@ namespace Fresh
                     MessageBox.Show("Excel Controller \nVersion: " + Assembly.GetExecutingAssembly().GetName().Version + "\n No mode specified. Program will now close.", "Excel Contrller", MessageBoxButtons.OK);
                     break;
                 case ApplicationModes.Power_HDC_RCC_Audit:
-                    dataFile = @"C:\Fresh Temp\Excel data\PowerHistory-2015-04-10.csv";
-                    templateFile = @"C:\Fresh Temp\Excel data\HDC RPP Audit - All COLO Q4.xlsx";
-                        
-                    if (!Archives.ValidXLSFile(ref dataFile))
+                    //dataFile = @"C:\Fresh Temp\Excel data\PowerHistory-2015-04-10.csv";
+                    //templateFile = @"C:\Fresh Temp\Excel data\HDC RPP Audit - All COLO - Template.xlsx";
+
+                    if (dataFile == "")
+                    {
+                        OpenFileDialog file = new OpenFileDialog();
+                        file.Title = "Select a Data CSV File";
+                        if (file.ShowDialog() == DialogResult.OK)
+                        {
+                            dataFile = file.FileName;
+                        }
+                    }
+                    if (templateFile == "")
+                    {
+                        OpenFileDialog file = new OpenFileDialog();
+                        file.Title = "Select a template excel file";
+                        if (file.ShowDialog() == DialogResult.OK)
+                        {
+                            templateFile = file.FileName;
+                        }
+                    }
+
+                    if (!ExcelController.ValidXLSFile(ref dataFile))
                         MessageBox.Show("Cannot start without a data file.");
-                    else if (!Archives.ValidXLSFile(ref templateFile))
+                    else if (!ExcelController.ValidXLSFile(ref templateFile))
                         MessageBox.Show("Cannot start without a summary template.");
                     else
                         new ExcelController().CreatePower_HDC_RCC_Audit(dataFile, templateFile);

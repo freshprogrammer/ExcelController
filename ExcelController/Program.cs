@@ -8,7 +8,7 @@ namespace Fresh
     {
         enum ApplicationModes
         {
-            Power_HDC_RCC_Audit,
+            Power_Panel_Audit_Creator,
             Test,
             None,
         }
@@ -23,15 +23,15 @@ namespace Fresh
             if (args.Length == 0)
             {
                 //HACK test command lines
-                args = new string[] { "-pa" };
+                args = new string[] { "-ppa" };
             }
 
             //bool lastArgWasMode = false;
             for (int i=0; i < args.Length; i++)
             {
                 string arg = args[i].ToLower();
-                if (arg == "-pa")
-                    mode = ApplicationModes.Power_HDC_RCC_Audit;
+                if (arg == "-ppa")
+                    mode = ApplicationModes.Power_Panel_Audit_Creator;
                 else if (arg == "-?")
                     mode = ApplicationModes.Test;
             }
@@ -47,7 +47,7 @@ namespace Fresh
                 case ApplicationModes.None:
                     MessageBox.Show("Excel Controller \nVersion: " + Assembly.GetExecutingAssembly().GetName().Version + "\n No mode specified. Program will now close.", "Excel Contrller", MessageBoxButtons.OK);
                     break;
-                case ApplicationModes.Power_HDC_RCC_Audit:
+                case ApplicationModes.Power_Panel_Audit_Creator:
                     //dataFile = @"C:\Fresh Temp\Excel data\PowerHistory-2015-04-10.csv";
                     //templateFile = @"C:\Fresh Temp\Excel data\HDC RPP Audit - All COLO - Template.xlsx";
 
@@ -73,7 +73,7 @@ namespace Fresh
                     if (!ExcelController.ValidXLSFile(ref dataFile))
                         MessageBox.Show("Cannot start without a data file.");
                     else if (!ExcelController.ValidXLSFile(ref templateFile))
-                        MessageBox.Show("Cannot start without a summary template.");
+                        MessageBox.Show("Cannot start without a template file.");
                     else
                         new ExcelController().CreatePower_HDC_RCC_Audit(dataFile, templateFile);
                     break;

@@ -227,19 +227,12 @@ namespace Fresh
         }
         #endregion
 
-        #region Power_HDC_RCC_Audit
+        #region Power_RPP_Audit
         private PowerRecordComparator powerCircuitComparer = new PowerRecordComparator();
 
-        /*
-         * TODO
-         * fix date (max on panel)
-         * fix formula for circuits not 20A
-         * fix 208 double circuits
-         * 
-         * */
-        public void CreatePower_HDC_RCC_Audit(string dataFile, string templateFile)
+        public void CreatePower_RPP_Audit(string dataFile, string templateFile)
         {
-            List<PowerRecord> dataRecords = LoadPowerData(dataFile);
+            List<PowerRecord> dataRecords = LoadPowerData_RPP_Audit(dataFile);
 
             Excel.Application excelApplication = new Excel.Application();
             excelApplication.Visible = true;
@@ -248,7 +241,7 @@ namespace Fresh
 
             Excel.Worksheet templateSheet = (Excel.Worksheet)workbook.Worksheets[1];
 
-            string date = "DATE HERE";
+            DateTime maxPanelDate = new DateTime(0);
             string lastPanel = null;
             object[,] data = new object[41, 10];
             Excel.Worksheet panelSheet = null;
@@ -256,7 +249,8 @@ namespace Fresh
             {
                 if (rec.panel != lastPanel)
                 {
-                    //new sheet
+                    //new panel/sheet
+                    maxPanelDate = new DateTime(0);
                     //Excel.Worksheet newSheet = (Excel.Worksheet)workbook.Worksheets.Add(Type.Missing, Type.Missing, Type.Missing, Type.Missing);
                     templateSheet.Copy(templateSheet);
                     if(panelSheet!=null)
@@ -268,20 +262,31 @@ namespace Fresh
                     panelSheet.get_Range("C8").Value = "IRV01";
                     //panel
                     panelSheet.get_Range("C9").Value = "UPS " + rec.panel;
-                    //date
-                    panelSheet.get_Range("C10").Value = date;
 
                     lastPanel = rec.panel;
                 }
 
-                string cellOfCircuit = GetCellForCircuit_HDC_RCC_Audit(rec.circuit);
+                //update to max date //ignore 0 value readings that may be a result of just turning the circuit off and not a new reading on the panel
+                if (rec.date > maxPanelDate && rec.reading>0)
+                {
+                    maxPanelDate = rec.date;
+                    panelSheet.get_Range("C10").Value = maxPanelDate;
+                }
+
+                string cellOfCircuit = GetDataCellForCircuit_RPP_Audit(rec.circuit);
                 panelSheet.get_Range(cellOfCircuit).Value = rec.reading;
+
+                //update percentage formula
+                if (rec.amps != 20)
+                {
+                    string formulaCell = GetFormulaCellForCircuit_RPP_Audit(rec.circuit);
+                    panelSheet.get_Range(formulaCell).Formula = "=" + cellOfCircuit+"/"+rec.amps;
+                }
             }
             ReleaseObject(panelSheet);
 
             //delete template sheet
             templateSheet.Delete();
-
 
             //excelApplication.ActiveWindow.DisplayGridlines = false;
             excelApplication.Visible = true;
@@ -292,7 +297,7 @@ namespace Fresh
             ReleaseObject(excelApplication);
         }
 
-        private static string GetCellForCircuit_HDC_RCC_Audit(int circuit)
+        private static string GetDataCellForCircuit_RPP_Audit(int circuit)
         {
             int letterCol = (int)(((circuit-1)%6)/2);
             if (circuit % 2 == 0) letterCol += 5;//skip two in middle - put even on the right
@@ -302,9 +307,22 @@ namespace Fresh
             return letter + number;
         }
 
-        private List<PowerRecord> LoadPowerData(string dataFile)
+        private static string GetFormulaCellForCircuit_RPP_Audit(int circuit)
+        {
+            string letter;
+            if (circuit % 2 == 0)
+                letter = "J";
+            else
+                letter = "E";
+
+            int number = 14 + (int)((circuit - 1) / 2);
+            return letter + number;
+        }
+
+        private List<PowerRecord> LoadPowerData_RPP_Audit(string dataFile)
         {
             /* parse data from CSV file
+             * *NOTE this creates duplicate entries for 208v circuits (circuits that continan "/" in the circuit name like "14/16")
              */
             var databasePassword = missing;
 
@@ -318,7 +336,7 @@ namespace Fresh
             //load data from sheet
             var powerData = new List<PowerRecord>();
 
-            const int dataStart = 2;
+            const int dataStart = 3;
 
             Excel.Range dataRange = dataSheet.UsedRange;
             int rowCount = dataRange.Rows.Count;
@@ -328,18 +346,24 @@ namespace Fresh
             {
                 try
                 {
-                    var rec = new PowerRecord();
-                    rec.panel =      valueArray[row, 1].ToString();
-                    rec.circuit = int.Parse(valueArray[row, 2].ToString());
-                    rec.reading = float.Parse(valueArray[row, 3].ToString());
-                    rec.amps = int.Parse(valueArray[row, 5].ToString());
-                    rec.volts = int.Parse(valueArray[row, 6].ToString());
-                    rec.on = valueArray[row, 7].ToString() == "On";
-                    rec.date = valueArray[row, 8].ToString();
-                    powerData.Add(rec);
+                    var circuits = valueArray[row, 2].ToString().Split('/');
+                    foreach (string circuit in circuits)
+                    {
+                        var rec = new PowerRecord();
+                        rec.panel = valueArray[row, 1].ToString();
+                        rec.circuit = int.Parse(circuit);
+                        rec.reading = float.Parse(valueArray[row, 3].ToString());
+                        rec.amps = int.Parse(valueArray[row, 5].ToString());
+                        rec.volts = int.Parse(valueArray[row, 6].ToString());
+                        rec.on = valueArray[row, 7].ToString() == "On";
+                        rec.date = (DateTime)valueArray[row, 8];
+                        powerData.Add(rec);
+                    }
                 }
                 catch (Exception)
                 {
+                    MessageBox.Show("Add error has occurred durring the load process. Please check the data is valid and try again.","Error");
+                    Console.WriteLine("failed");
                 }
             }
             powerData.Sort(powerCircuitComparer);
@@ -362,13 +386,6 @@ namespace Fresh
     }
 
     #region Power Record for HDC RCC Audit
-    class PowerRecordComparator : IComparer<PowerRecord>
-    {
-        public int Compare(PowerRecord t1, PowerRecord t2)
-        {
-            return (t1.panel.PadLeft(3, '0') + (t1.circuit + 100)).CompareTo(t2.panel.PadLeft(3, '0') + (t2.circuit + 100));
-        }
-    }
     struct PowerRecord
     {
         public string panel;
@@ -377,7 +394,7 @@ namespace Fresh
         public int amps;
         public int volts;
         public bool on;
-        public string date;
+        public DateTime date;
 
         public override string ToString()
         {

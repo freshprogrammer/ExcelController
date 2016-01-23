@@ -235,7 +235,7 @@ namespace Fresh
             List<PowerRecord> dataRecords = LoadPowerData_RPP_Audit(dataFile);
 
             Excel.Application excelApplication = new Excel.Application();
-            excelApplication.Visible = true;
+            //excelApplication.Visible = true;//hidden for users safty, could click in or off window breaking things
 
             Excel.Workbook workbook = excelApplication.Workbooks.Open(templateFile, 0, true, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "", true, false, 0, true, false, false);
 
@@ -256,12 +256,13 @@ namespace Fresh
                     if(panelSheet!=null)
                         ReleaseObject(panelSheet);
                     panelSheet = (Excel.Worksheet)workbook.Worksheets[workbook.Worksheets.Count-1];
-                    panelSheet.Name = "UPS " + rec.panel;
+                    panelSheet.Name = rec.panel;
 
                     //site
-                    panelSheet.get_Range("C8").Value = "IRV01";
+                    //panelSheet.get_Range("C8").Value = "IRV01";
                     //panel
-                    panelSheet.get_Range("C9").Value = "UPS " + rec.panel;
+                    panelSheet.get_Range("C9").NumberFormat = "@";//format as text
+                    panelSheet.get_Range("C9").Value = rec.panel;
 
                     lastPanel = rec.panel;
                 }

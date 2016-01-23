@@ -261,6 +261,7 @@ namespace Fresh
                     //site
                     //panelSheet.get_Range("C8").Value = "IRV01";
                     //panel
+                    panelSheet.get_Range("C9").NumberFormat = "@";//format as text
                     panelSheet.get_Range("C9").Value = rec.panel;
 
                     lastPanel = rec.panel;

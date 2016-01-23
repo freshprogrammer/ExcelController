@@ -256,12 +256,12 @@ namespace Fresh
                     if(panelSheet!=null)
                         ReleaseObject(panelSheet);
                     panelSheet = (Excel.Worksheet)workbook.Worksheets[workbook.Worksheets.Count-1];
-                    panelSheet.Name = "UPS " + rec.panel;
+                    panelSheet.Name = rec.panel;
 
                     //site
                     //panelSheet.get_Range("C8").Value = "IRV01";
                     //panel
-                    panelSheet.get_Range("C9").Value = "UPS " + rec.panel;
+                    panelSheet.get_Range("C9").Value = rec.panel;
 
                     lastPanel = rec.panel;
                 }

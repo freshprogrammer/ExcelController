@@ -407,7 +407,7 @@ namespace Fresh
     {
         public int Compare(PowerRecord t1, PowerRecord t2)
         {
-            return (t1.panel.PadLeft(3, '0') + (t1.circuit + 100)).CompareTo(t2.panel.PadLeft(3, '0') + (t2.circuit + 100));
+            return (t1.panel + (t1.circuit + 1000)).CompareTo(t2.panel + (t2.circuit + 1000));
         }
     }
     #endregion
